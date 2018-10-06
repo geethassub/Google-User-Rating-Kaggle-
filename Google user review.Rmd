@@ -1,0 +1,270 @@
+---
+title: "Google Review"
+author: "Geetha"
+date: "October 3, 2018"
+output: html_document
+---
+#Google Apps - User Rating
+
+## Introduction
+
+####The list provides details on the ratings provided for different apps. It provides details on the the number of installations, reviews, Categories, Content rating etc. 
+
+####We load the necessary libraries and check on the file details.
+
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(plotly)
+library(corrplot)
+library(plyr)
+options(scipen=999)
+
+setwd("C:/Geetha/Kaggle/Google Store")
+
+file <- read.csv("googleplaystore.csv")
+file_review <- read.csv("googleplaystore_user_reviews.csv")
+str(file)
+summary(file)
+
+```
+
+##Data Cleaning
+
+Cleaning the data to make better analysis with the data. 
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+file$Reviews <- as.numeric(file$Reviews)# Review is numeric
+file$Size <- gsub("M", "", file$Size)
+file$Size <- ifelse(grepl("k", file$Size), as.numeric(file$Size)/1000, file$Size)
+file$Installs <- as.character(file$Installs)
+file$Installs <- gsub("\\+", "", file$Installs)#removes + and saves with "," as a character
+file$Installs <- gsub(",", "", file$Installs)
+file$Installs <- as.numeric(file$Installs)
+file$Price <- as.numeric(gsub("\\$", "", as.character(file$Price)))
+file$Size <- as.numeric(gsub("\\k", "", as.character(file$Size)))
+```
+
+##Feature Engineering
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+file_1 <- file %>%
+          filter(Category != 1.9)%>%#1.9 is removed
+          filter(!is.na(Rating))%>%
+          filter(!is.na(Size))%>%
+          filter(!is.na(Reviews))%>%
+          filter(!is.na(Installs))%>%
+          filter()
+
+
+file_1$rating_bin[file_1$Rating < 1] = "Less than 1"
+file_1$rating_bin[file_1$Rating >= 1 & file_1$Rating <2] = "More than 1 and less than 2"
+file_1$rating_bin[file_1$Rating >= 2 & file_1$Rating <3] = "More than 2 and less than 3"
+file_1$rating_bin[file_1$Rating >= 3 & file_1$Rating <4] = "More than 3 and less than 4"
+file_1$rating_bin[file_1$Rating >= 4] = "More than 4"
+```
+
+##Exploratory Data analysis
+
+To make ourself familiar with the data, we perform the following analysis. We start our analysis from the category column.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+pie(table(file$Category), main = "Apps in Each category", border = "brown", cex = .5, radius = 1)
+
+```
+
+Top3 categories based on number of apps - Family, Game and Tools
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+
+          
+mean_rating <- mean(file_1$Rating)
+
+file_1$rating_bin[file_1$Rating < 1] = "Less than 1"
+file_1$rating_bin[file_1$Rating >= 1 & file_1$Rating <2] = "More than 1 and less than 2"
+file_1$rating_bin[file_1$Rating >= 2 & file_1$Rating <3] = "More than 2 and less than 3"
+file_1$rating_bin[file_1$Rating >= 3 & file_1$Rating <4] = "More than 3 and less than 4"
+file_1$rating_bin[file_1$Rating >= 4] = "More than 4"
+
+file_1$rating_bin <- as.factor(file_1$rating_bin)
+
+
+ggplot(file_1, aes(reorder(Category, -Rating, mean), Rating))+
+  theme(axis.text.x = element_text(angle = 90))+
+  stat_summary(fun.y = "mean", geom = "bar", fill = "yellow")+ xlab("Category")+ylab("Average Rating")+
+  geom_line()+geom_hline(yintercept = mean_rating, color = "red")+
+  labs(title = "Categories analysed by Rating")
+
+```
+
+Top3 categories based on rating of apps - Events, Education and Art and Design. The ratings for these 3 top apps have not gone below 3.However for game, family, medical, productivity, Business, Finance, communication, Tools and Dating the rating ranges from 1 to 5. Mean rating for the apps is 4.17. Out of 33 categories, average rating for 18 apps are below the total average.
+
+
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+
+ggplot(file_1, aes(reorder(Category, -Reviews, sum), Reviews, fill = rating_bin ))+geom_bar(stat = "identity")+
+  theme(axis.text.x = element_text(angle = 90))+
+  xlab("Category")+ylab("Reviews")+
+  labs(title = "Categories analysed by Reviews")
+
+```
+
+Top3 categories based on number of reviews - Family, Game and tools
+
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+mean_size_F <- file_1%>%
+             filter(Type == "Free")%>%
+            summarise(mean = mean(Size))
+            
+mean_size_P <- file_1%>%
+              filter(Type == "Paid")%>%
+              summarise(mean = mean(Size))
+
+ggplot(file_1, aes(reorder(Category, -Size), Size, fill = Type ))+
+  theme(axis.text.x = element_text(angle = 90))+
+  geom_boxplot()+ xlab("Category")+ylab("Size")+
+  geom_hline(yintercept = mean_size_F$mean, color = "red")+
+  geom_hline(yintercept = mean_size_P$mean, color = "green")+
+  labs(title = "Categories analysed by Size")
+
+```
+
+Categories are listed based on the average size of the apps. Average size is higher for Games, Family and Sports. In few apps like Dating, LIbraries and Demo, though the average size is less, they have apps with very huge size. The number of ouliers are more in Free apps compared to paid apps. The average sie of Free app is 23.83, while the average size of a paid app is 22.58
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+ggplot(file_1, aes(reorder(Category, -Installs, sum), Installs))+
+  theme(axis.text.x = element_text(angle = 90))+
+  geom_bar(stat = "identity", fill = "red")+ xlab("Category")+ylab("Installs")+
+  labs(title = "Categories Analysed By Number Of Installs")
+
+```
+
+Top3 categories based on installation - Games, Family and Tools
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+mean_price <- file_1%>%
+              filter(Type == "Paid")%>%
+              summarise(mean = mean(Price))
+
+
+ggplot(file_1, aes(reorder(Category, -Price), Price))+
+  theme(axis.text.x = element_text(angle = 90))+
+  geom_boxplot()+
+  scale_y_continuous(breaks = seq(0,400,25), limits = c(0,400))+
+  xlab("Category")+ylab("Price")+
+  geom_hline(yintercept = mean_price$mean, color = "red")+
+  labs(title = "Categories Analysed By Price")
+
+```
+
+Finance, Lifestyle and Family has apps costing around 400 dollars where the mean price of all paid app is $15.05
+
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+
+fin <- file_1 %>%
+       filter(Type == "Paid")%>%
+       filter(Category == "FINANCE")
+
+ggplot(fin, aes(reorder(App, -Price, mean), Price))+
+  theme(axis.text.x = element_text(angle = 90))+
+  geom_bar(stat = "identity", fill = "red")+ xlab("App")+ylab("Price")+
+  labs(title = "High Priced Apps In Finance")
+
+lif <- file_1 %>%
+  filter(Type == "Paid")%>%
+  filter(Category == "LIFESTYLE")
+
+ggplot(lif, aes(reorder(App, -Price, mean), Price))+
+  theme(axis.text.x = element_text(angle = 90))+
+  geom_bar(stat = "identity", fill = "red")+ xlab("App")+ylab("Price")+
+  labs(title = "High Priced Apps In Lifestyle")
+
+fam <- file_1 %>%
+  filter(Type == "Paid")%>%
+  filter(Category == "FAMILY")
+
+ggplot(fam, aes(reorder(App, -Price, mean), Price))+
+  theme(axis.text.x = element_text(angle = 90))+
+  geom_bar(stat = "identity", fill = "red")+ xlab("App")+ylab("Price")+
+  labs(title = "High Priced Apps In Family")
+
+```
+
+The apps with high Price are listed in these charts. The number of paid apps are more in Family comparede to other two highly priced Categories.
+
+## Rating Analysis
+
+We will now analyse to see the factors that impact the rating of an app. 
+
+In the below steps, Rating is analysed with Reviews, Size, Install and Price to identify whether are there any correlation between these factors.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+
+file_2 <- subset(file_1, select = c("Rating", "Reviews", "Size", "Installs", "Price"))
+C <- cor(file_2)
+C
+corrplot(C, method = "number", bg="lightgray")
+
+```
+
+Ratings are positively correlated with Installs(0.05) and Size (0.08) and negatively correlated with Price(-0.019) and Reviews(-0.0048)
+
+###Rating and Installs
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+perc <- ddply(file_1, .(file_1$Installs, file_1$Type, file_1$Rating), nrow)
+names(perc) <- c("Installs", "Type", "Rating", "Count")
+perc_ins <- perc%>%
+            group_by(Installs)%>%
+            group_by(Type)%>%          
+            mutate(perc = (Count / sum(Count))*100)
+
+
+ggplot(perc_ins, aes(x = Rating, y = Installs, fill = "yellow"))+geom_bar(stat = "identity", position = "dodge")+  xlab("Rating")+ylab("Installations")+ labs(title = "Rating and Installation")
+
+```
+
+From the graph it is clear that the rating is high when the installations are more.
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+ggplot(perc_ins, aes(x = Rating, y = Installs, fill = Type))+geom_bar(stat = "identity", position = "dodge")+  xlab("Rating")+ylab("Installations")+ labs(title = "Rating and Installation")
+
+```
+
+
+
+###Rating and Size
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+mean_size <- file_1%>%
+  summarise(mean = mean(Size))
+
+ggplot(file_1, aes(x = Rating, y = Size))+
+  stat_summary(fun.y = "mean", geom = "bar", position = "dodge")+xlab("Rating")+
+  ylab("Size")+ labs(title = "Rating and Size")+geom_hline(yintercept = mean_size$mean, color = "red")
+
+```
+
+
+#Rating and Price
+
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+
+ggplot(file_1, aes(x = Rating, y= Price))+stat_summary(fun.y = "mean", geom = "bar")+
+  xlab("Rating")+ylab("Average PRice")+ labs(title = "Rating and Price")
+
+ggplot(file_1, aes(x = Rating, fill = Type))+geom_bar(stat = "Count", position = "dodge")+xlab("Rating")+ylab("Count")+ labs(title = "Rating and Price")
+
+free <- subset(file_1, Type == "Free")
+ggplot(free, aes(x = Rating))+geom_bar(stat = "Count")+xlab("Rating")+ylab("Count")+ labs(title = "Rating for Free apps")
+
+paid <- subset(file_1, Type == "Paid")
+ggplot(paid, aes(x = Rating, y = Price))+stat_summary(fun.y = "mean", geom = "bar")+xlab("Rating")+ylab("Price")+ labs(title = "Rating for Paid apps")
+
+```
+
