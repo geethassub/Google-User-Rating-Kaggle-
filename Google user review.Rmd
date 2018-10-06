@@ -8,9 +8,9 @@ output: html_document
 
 ## Introduction
 
-####The list provides details on the ratings provided for different apps. It provides details on the the number of installations, reviews, Categories, Content rating etc. 
+The list provides details on the ratings provided for different apps. It provides details on the the number of installations, reviews, Categories, Content rating etc. 
 
-####We load the necessary libraries and check on the file details.
+We load the necessary libraries and check on the file details.
 
 
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
